@@ -268,12 +268,13 @@ if st.session_state.logged_in:
                     mime='text/csv'
                 )
 
+    # Logout button
     if st.sidebar.button('Logout'):
         st.session_state.logged_in = False
         st.session_state.username = None
         st.session_state.role = None
         st.session_state.clear()
-        st.experimental_rerun()
+        st.write("<script>window.location.reload()</script>", unsafe_allow_html=True)
 
 else:
     st.title('Login')
@@ -289,6 +290,6 @@ else:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.role = role
-                st.experimental_rerun()
+                st.write("<script>window.location.reload()</script>", unsafe_allow_html=True)
             else:
                 st.error('Invalid username or password')

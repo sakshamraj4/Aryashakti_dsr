@@ -4,6 +4,7 @@ import datetime as dt
 import plotly.express as px
 from sqlalchemy import create_engine
 
+# Database configuration
 db_config = {
     'dbname': 'testdb',
     'user': 'avijeet@indiabounds',
@@ -44,7 +45,8 @@ def authenticate(username, password):
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
-    st.session_state.username = None
+    st.session_state.username = ""
+    st.session_state.password = ""
     st.session_state.role = None
 
 def handle_login():
@@ -52,14 +54,16 @@ def handle_login():
     if role:
         st.session_state.logged_in = True
         st.session_state.role = role
-    else:
-        st.error('Invalid username or password')
+        st.session_state.username = ""
+        st.session_state.password = ""
+        st.rerun()  # Refresh the page to reflect the new state
 
 def handle_logout():
     st.session_state.logged_in = False
-    st.session_state.username = None
+    st.session_state.username = ""
+    st.session_state.password = ""
     st.session_state.role = None
-    st.experimental_rerun()
+    st.rerun()  # Refresh the page to reflect the new state
 
 if st.session_state.logged_in:
     role = st.session_state.role
@@ -158,6 +162,7 @@ if st.session_state.logged_in:
             options=['All'] + list(data['status_of_case'].unique()), 
             default=['All']
         )
+
         def apply_filters(df):
             filtered_df = df.copy()
             if 'All' not in state_filter:
@@ -236,20 +241,16 @@ if st.session_state.logged_in:
                 )
 
     if st.sidebar.button('Logout'):
-        handle_logout()
+       handle_logout()
 
 else:
     st.title('Login')
     st.write("Please log in to continue.")   
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if 'username' not in st.session_state:
-            st.session_state.username = ""
-        if 'password' not in st.session_state:
-            st.session_state.password = ""
-        
         st.session_state.username = st.text_input('Username', value=st.session_state.username)
         st.session_state.password = st.text_input('Password', type='password', value=st.session_state.password)
         
         if st.button('Login'):
             handle_login()
+

@@ -2,17 +2,40 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 import plotly.express as px
+from sqlalchemy import create_engine
+
+# Database connection details
+db_config = {
+    'dbname': 'testdb',
+    'user': 'avijeet@indiabounds',
+    'password': '23;ZcV$NAC',
+    'host': 'indiabounds.postgres.database.azure.com',
+    'port': 5432
+}
+
+# Function to create a database engine
+def create_db_engine():
+    return create_engine(f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['dbname']}")
+
+# Function to load data from the database
+@st.cache_data
+def load_data():
+    try:
+        engine = create_db_engine()
+        query = "SELECT * FROM dsr_activity"
+        data = pd.read_sql(query, engine)
+        return data
+    except Exception as e:
+        st.error(f"Error connecting to the database: {e}")
+        return pd.DataFrame()
 
 # Load data
-data_path = '/home/az-134/Downloads/bd.csv'
-data = pd.read_csv(data_path)
+data = load_data()
 
-# Convert DATE and FOLLOW UP DATE to datetime
-data['DATE'] = pd.to_datetime(data['DATE'], format='%d %b %Y', errors='coerce')
-data['FOLLOW UP DATE'] = pd.to_datetime(data['FOLLOW UP DATE'], format='%d %b %Y', errors='coerce')
-
-# Convert AH REVIEW DATE to datetime
-data['AH review date'] = pd.to_datetime(data['AH review date'], errors='coerce')
+# Convert date columns to datetime
+data['date'] = pd.to_datetime(data['date'], errors='coerce')
+data['follow_up_date'] = pd.to_datetime(data['follow_up_date'], errors='coerce')
+data['ah_review_date'] = pd.to_datetime(data['ah_review_date'], errors='coerce')
 
 # User credentials and roles
 users = {
@@ -42,18 +65,18 @@ if st.session_state.logged_in:
         st.header("Summary View")
 
         # Calculate summary metrics
-        today = pd.Timestamp.today()
+        today = pd.Timestamp.today().normalize()
         yesterday = today - pd.Timedelta(days=1)
         last_week = today - pd.Timedelta(days=7)
         first_day_of_month = today.replace(day=1)
         last_month = first_day_of_month - pd.Timedelta(days=1)
         first_day_of_last_month = last_month.replace(day=1)
 
-        today_data = data[data['DATE'] == today]
-        yesterday_data = data[data['DATE'] == yesterday]
-        last_week_data = data[(data['DATE'] >= last_week) & (data['DATE'] <= today)]
-        this_month_data = data[(data['DATE'] >= first_day_of_month) & (data['DATE'] <= today)]
-        last_month_data = data[(data['DATE'] >= first_day_of_last_month) & (data['DATE'] <= last_month)]
+        today_data = data[data['date'] == today]
+        yesterday_data = data[data['date'] == yesterday]
+        last_week_data = data[(data['date'] >= last_week) & (data['date'] <= today)]
+        this_month_data = data[(data['date'] >= first_day_of_month) & (data['date'] <= today)]
+        last_month_data = data[(data['date'] >= first_day_of_last_month) & (data['date'] <= last_month)]
 
         # Display summary metrics
         st.subheader("DSR Activity Summary")
@@ -65,30 +88,30 @@ if st.session_state.logged_in:
 
         # Pie chart: Status of Case
         st.subheader("Status of Case Distribution")
-        status_counts = data['STATUS OF CASE'].value_counts().reset_index()
-        status_counts.columns = ['STATUS OF CASE', 'count']
-        status_pie_chart = px.pie(status_counts, names='STATUS OF CASE', values='count', title='Status of Case', hole=0)
+        status_counts = data['status_of_case'].value_counts().reset_index()
+        status_counts.columns = ['status_of_case', 'count']
+        status_pie_chart = px.pie(status_counts, names='status_of_case', values='count', title='Status of Case', hole=0)
         st.plotly_chart(status_pie_chart)
 
         # Pie chart: Type of Meeting
         st.subheader("Type of Meeting Distribution")
-        meeting_type_counts = data['TYPE OF MEETING'].value_counts().reset_index()
-        meeting_type_counts.columns = ['TYPE OF MEETING', 'count']
-        meeting_type_pie_chart = px.pie(meeting_type_counts, names='TYPE OF MEETING', values='count', title='Type of Meeting', hole=0)
+        meeting_type_counts = data['type_of_meeting'].value_counts().reset_index()
+        meeting_type_counts.columns = ['type_of_meeting', 'count']
+        meeting_type_pie_chart = px.pie(meeting_type_counts, names='type_of_meeting', values='count', title='Type of Meeting', hole=0)
         st.plotly_chart(meeting_type_pie_chart)
 
         # Pie chart: Product Distribution
         st.subheader("Product Distribution")
-        product_counts = data['PRODUCT'].value_counts().reset_index()
-        product_counts.columns = ['PRODUCT', 'count']
-        product_pie_chart = px.pie(product_counts, names='PRODUCT', values='count', title='Product', hole=0)
+        product_counts = data['product'].value_counts().reset_index()
+        product_counts.columns = ['product', 'count']
+        product_pie_chart = px.pie(product_counts, names='product', values='count', title='Product', hole=0)
         st.plotly_chart(product_pie_chart)
 
         # Bar chart: Commodity Distribution
         st.subheader("Commodity Distribution")
-        commodity_counts = data['COMMODITY'].value_counts().reset_index()
-        commodity_counts.columns = ['COMMODITY', 'count']
-        commodity_bar_chart = px.bar(commodity_counts, x='COMMODITY', y='count', title='Commodity Distribution')
+        commodity_counts = data['commodity'].value_counts().reset_index()
+        commodity_counts.columns = ['commodity', 'count']
+        commodity_bar_chart = px.bar(commodity_counts, x='commodity', y='count', title='Commodity Distribution')
         commodity_bar_chart.update_xaxes(title_text='Commodity')
         commodity_bar_chart.update_yaxes(title_text='Count')
         st.plotly_chart(commodity_bar_chart)
@@ -101,47 +124,47 @@ if st.session_state.logged_in:
 
         state_filter = st.sidebar.multiselect(
             'Select State', 
-            options=['All'] + list(data['STATE'].unique()), 
+            options=['All'] + list(data['state'].unique()), 
             default=['All']
         )
         bd_name_filter = st.sidebar.multiselect(
             'Select BD Name', 
-            options=['All'] + list(data['BD NAME'].unique()), 
+            options=['All'] + list(data['bd_name'].unique()), 
             default=['All']
         )
         month_filter = st.sidebar.multiselect(
             'Select Month', 
-            options=['All'] + list(data['MONTH'].unique()), 
+            options=['All'] + list(data['month'].unique()), 
             default=['All']
         )
         client_filter = st.sidebar.multiselect(
             'Select Client Name', 
-            options=['All'] + list(data['CLIENT NAME'].unique()), 
+            options=['All'] + list(data['client_name'].unique()), 
             default=['All']
         )
         designation_filter = st.sidebar.multiselect(
             'Select Designation of Person Met', 
-            options=['All'] + list(data['Designation of Person Met'].unique()), 
+            options=['All'] + list(data['designation_of_person_met'].unique()), 
             default=['All']
         )
         processor_type_filter = st.sidebar.multiselect(
             'Select If Processor, Type', 
-            options=['All'] + list(data['IF PROCESSOR, TYPE'].unique()), 
+            options=['All'] + list(data['if_processor_type'].unique()), 
             default=['All']
         )
         commodity_filter = st.sidebar.multiselect(
             'Select Commodity', 
-            options=['All'] + list(data['COMMODITY'].unique()), 
+            options=['All'] + list(data['commodity'].unique()), 
             default=['All']
         )
         product_filter = st.sidebar.multiselect(
             'Select Product', 
-            options=['All'] + list(data['PRODUCT'].unique()), 
+            options=['All'] + list(data['product'].unique()), 
             default=['All']
         )
         status_of_case_filter = st.sidebar.multiselect(
             'Select Status of Case', 
-            options=['All'] + list(data['STATUS OF CASE'].unique()), 
+            options=['All'] + list(data['status_of_case'].unique()), 
             default=['All']
         )
 
@@ -150,31 +173,31 @@ if st.session_state.logged_in:
             filtered_df = df.copy()
 
             if 'All' not in state_filter:
-                filtered_df = filtered_df[filtered_df['STATE'].isin(state_filter)]
+                filtered_df = filtered_df[filtered_df['state'].isin(state_filter)]
 
             if 'All' not in bd_name_filter:
-                filtered_df = filtered_df[filtered_df['BD NAME'].isin(bd_name_filter)]
+                filtered_df = filtered_df[filtered_df['bd_name'].isin(bd_name_filter)]
 
             if 'All' not in month_filter:
-                filtered_df = filtered_df[filtered_df['MONTH'].isin(month_filter)]
+                filtered_df = filtered_df[filtered_df['month'].isin(month_filter)]
 
             if 'All' not in client_filter:
-                filtered_df = filtered_df[filtered_df['CLIENT NAME'].isin(client_filter)]
+                filtered_df = filtered_df[filtered_df['client_name'].isin(client_filter)]
 
             if 'All' not in designation_filter:
-                filtered_df = filtered_df[filtered_df['Designation of Person Met'].isin(designation_filter)]
+                filtered_df = filtered_df[filtered_df['designation_of_person_met'].isin(designation_filter)]
 
             if 'All' not in processor_type_filter:
-                filtered_df = filtered_df[filtered_df['IF PROCESSOR, TYPE'].isin(processor_type_filter)]
+                filtered_df = filtered_df[filtered_df['if_processor_type'].isin(processor_type_filter)]
 
             if 'All' not in commodity_filter:
-                filtered_df = filtered_df[filtered_df['COMMODITY'].isin(commodity_filter)]
+                filtered_df = filtered_df[filtered_df['commodity'].isin(commodity_filter)]
 
             if 'All' not in product_filter:
-                filtered_df = filtered_df[filtered_df['PRODUCT'].isin(product_filter)]
+                filtered_df = filtered_df[filtered_df['product'].isin(product_filter)]
 
             if 'All' not in status_of_case_filter:
-                filtered_df = filtered_df[filtered_df['STATUS OF CASE'].isin(status_of_case_filter)]
+                filtered_df = filtered_df[filtered_df['status_of_case'].isin(status_of_case_filter)]
 
             return filtered_df
 
@@ -187,31 +210,31 @@ if st.session_state.logged_in:
         else:
             for index, row in filtered_data.iterrows():
                 # Create a summary header for each card
-                summary_header = f"{row['PRODUCT']} | {row['CLIENT NAME']} | {row['SH/ AH NAME']} | {row['BD NAME']}"
+                summary_header = f"{row['product']} | {row['client_name']} | {row['sh_ah_name']} | {row['bd_name']}"
 
                 with st.expander(summary_header):
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.markdown(f"**State:** {row['STATE']}")
-                        st.markdown(f"**SH/AH Name:** {row['SH/ AH NAME']}")
-                        st.markdown(f"**BD Name:** {row['BD NAME']}")
-                        st.markdown(f"**Month:** {row['MONTH']}")
-                        st.markdown(f"**Date:** {row['DATE'].date()}")
-                        st.markdown(f"**Client Name:** {row['CLIENT NAME']}")
-                        st.markdown(f"**Name of Person Met:** {row['Name of Person Met']}")
-                        st.markdown(f"**Designation of Person Met:** {row['Designation of Person Met']}")
-                        st.markdown(f"**Profile:** {row['PROFILE']}")
-                        st.markdown(f"**If Processor, Type:** {row['IF PROCESSOR, TYPE']}")
-                        st.markdown(f"**Customer Location:** {row['CUSTOMER LOCATION']}")
-                        st.markdown(f"**Existing/New:** {row['EXISTING/ NEW']}")
-                        st.markdown(f"**Phone:** {row['PHONE']}")
+                        st.markdown(f"**State:** {row['state']}")
+                        st.markdown(f"**SH/AH Name:** {row['sh_ah_name']}")
+                        st.markdown(f"**BD Name:** {row['bd_name']}")
+                        st.markdown(f"**Month:** {row['month']}")
+                        st.markdown(f"**Date:** {row['date'].date()}")
+                        st.markdown(f"**Client Name:** {row['client_name']}")
+                        st.markdown(f"**Name of Person Met:** {row['name_of_person_met']}")
+                        st.markdown(f"**Designation of Person Met:** {row['designation_of_person_met']}")
+                        st.markdown(f"**Profile:** {row['profile']}")
+                        st.markdown(f"**If Processor, Type:** {row['if_processor_type']}")
+                        st.markdown(f"**Customer Location:** {row['customer_location']}")
+                        st.markdown(f"**Existing/New:** {row['existing_new']}")
+                        st.markdown(f"**Phone:** {row['phone']}")
                     with col2:
-                        st.markdown(f"**Commodity:** {row['COMMODITY']}")
-                        st.markdown(f"**Product:** {row['PRODUCT']}")
-                        st.markdown(f"**Type of Meeting:** {row['TYPE OF MEETING']}")
-                        st.markdown(f"**Meeting Brief:** {row['MEETING BRIEF']}")
-                        st.markdown(f"**Status of Case:** {row['STATUS OF CASE']}")
-                        st.markdown(f"**Follow Up Date:** {row['FOLLOW UP DATE']}")
+                        st.markdown(f"**Commodity:** {row['commodity']}")
+                        st.markdown(f"**Product:** {row['product']}")
+                        st.markdown(f"**Type of Meeting:** {row['type_of_meeting']}")
+                        st.markdown(f"**Meeting Brief:** {row['meeting_brief']}")
+                        st.markdown(f"**Status of Case:** {row['status_of_case']}")
+                        st.markdown(f"**Follow Up Date:** {row['follow_up_date']}")
 
                         # Display image
                         if pd.notna(row['image_url']):
@@ -219,18 +242,20 @@ if st.session_state.logged_in:
 
                     # For admins: Add fields for updating AH Review/Remark and AH Review Date
                     if role == 'admin':
-                        ah_review_remark = st.text_area('AH Review/Remark', value=row['AH review/remark'], key=f'remark_{index}')
+                        ah_review_remark = st.text_area('AH Review/Remark', value=row['ah_review_remark'], key=f'remark_{index}')
 
                         # Ensure AH review date is a datetime object before using .date()
-                        if pd.notna(row['AH review date']):
-                            ah_review_date = st.date_input('AH Review Date', value=row['AH review date'].date(), key=f'date_{index}')
+                        if pd.notna(row['ah_review_date']):
+                            ah_review_date = st.date_input('AH Review Date', value=row['ah_review_date'].date(), key=f'date_{index}')
                         else:
                             ah_review_date = st.date_input('AH Review Date', value=dt.date.today(), key=f'date_{index}')
                         
                         if st.button('Update Record', key=f'update_{index}'):
-                            data.loc[index, 'AH review/remark'] = ah_review_remark
-                            data.loc[index, 'AH review date'] = pd.to_datetime(ah_review_date)
-                            data.to_csv(data_path, index=False)
+                            # Create a new engine instance
+                            engine = create_db_engine()
+                            data.loc[index, 'ah_review_remark'] = ah_review_remark
+                            data.loc[index, 'ah_review_date'] = pd.to_datetime(ah_review_date)
+                            data.to_sql('dsr_activity', engine, if_exists='replace', index=False)
                             st.success('Record updated successfully!')
 
             # Admin-only: Download filtered data as CSV
@@ -247,19 +272,23 @@ if st.session_state.logged_in:
         st.session_state.logged_in = False
         st.session_state.username = None
         st.session_state.role = None
-        st.rerun()
+        st.session_state.clear()
+        st.experimental_rerun()
 
 else:
     st.title('Login')
-    username = st.text_input('Username')
-    password = st.text_input('Password', type='password')
-    if st.button('Login'):
-        role = authenticate(username, password)
-        if role:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.session_state.role = role
-            st.rerun()
-        else:
-            st.error('Invalid username or password')
-
+    st.write("Please log in to continue.")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        username = st.text_input('Username')
+        password = st.text_input('Password', type='password')
+        if st.button('Login'):
+            role = authenticate(username, password)
+            if role:
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.session_state.role = role
+                st.experimental_rerun()
+            else:
+                st.error('Invalid username or password')

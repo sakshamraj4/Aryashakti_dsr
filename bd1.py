@@ -6,11 +6,6 @@ from sqlalchemy import create_engine
 
 # Database configuration
 db_config = {
-    'dbname': 'testdb',
-    'user': 'avijeet@indiabounds',
-    'password': '23;ZcV$NAC',
-    'host': 'indiabounds.postgres.database.azure.com',
-    'port': 5432
 }
 
 def create_db_engine():
